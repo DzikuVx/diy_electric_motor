@@ -86,8 +86,8 @@ void loop()
         display.setTextSize(1);
         display.setCursor(0, 0);
         display.print("Vbat: ");
-        display.println(vBat / 10.f);
-        display.println("");
+        display.print(vBat / 10.f);
+        display.print("V");
 
         display.display();
 
