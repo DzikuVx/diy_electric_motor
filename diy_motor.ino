@@ -20,7 +20,7 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define LOW_LOCK_TIME 0
 
 #define POWER_LEVEL_DEFAULT 80
-#define POWER_LEVEL_MIN 30
+#define POWER_LEVEL_MIN 25
 #define POWER_LEVEL_MAX 255
 
 uint16_t powerLevel = POWER_LEVEL_DEFAULT;
@@ -145,7 +145,7 @@ void loop()
         prevEdgeMicros = edgeMicros;
         edgeMicros = micros();
 
-        smoothEdge = smooth(edgeMicros - prevEdgeMicros, 0.90, smoothEdge);
+        smoothEdge = smooth(edgeMicros - prevEdgeMicros, 0.95, smoothEdge);
 
         frequency = 1000000.0f / smoothEdge;
         rpm = (frequency * 60) / 4;
