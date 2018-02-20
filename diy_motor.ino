@@ -1,9 +1,12 @@
 #include "Arduino.h"
 #include <Adafruit_SSD1306.h>
 #include <Wire.h>
+#include "pid.h"
 
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
+
+PIDController pidController(3.0, 0.0002, 2);
 
 #define IR_LED_PIN 9
 #define IR_FREQUENCY 5000
@@ -64,6 +67,8 @@ void setup()
     display.setTextColor(WHITE);
     display.clearDisplay();
     display.display();
+
+    pidController.setSetpoint(500);
 }
 
 float frequency;
@@ -160,6 +165,12 @@ void loop()
 
     prevStatus = shaftSensorStatus;
 
+    if (rpm < 5) {
+        pidController.resetIterm();
+    }
+
+    powerLevel = pidController.compute(rpm);
+
     // Cycle electromagnet if needed
     if (electromagnetEnabled) {
         analogWrite(POWER_OUTPUT_PIN, powerLevel);
@@ -185,6 +196,11 @@ void loop()
         display.setCursor(0, 20);
         display.print("Power: ");
         display.print(powerLevel);
+
+        display.setTextSize(1);
+        display.setCursor(0, 30);
+        display.print("iTerm: ");
+        display.print(pidController.getIterm());
 
         display.display();
 
