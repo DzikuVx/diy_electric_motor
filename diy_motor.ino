@@ -6,7 +6,7 @@
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
-PIDController pidController(3.0, 0.0002, 2);
+PIDController pidController(2.0, 0.5, 0.0);
 
 #define IR_LED_PIN 9
 #define IR_FREQUENCY 5000
@@ -130,7 +130,7 @@ void loop()
     }
 
     if (shaftSensorStatus == LOW) {
-        Serial.println(millis());
+        // Serial.println(millis());
     }
     
     oledOpen = false;
@@ -150,8 +150,12 @@ void loop()
         prevEdgeMicros = edgeMicros;
         edgeMicros = micros();
 
-        smoothEdge = smooth(edgeMicros - prevEdgeMicros, 0.95, smoothEdge);
+        uint32_t diff = edgeMicros - prevEdgeMicros;
 
+        if (diff < 1000000 && diff > 0) {
+            smoothEdge = smooth(diff, 0.97, smoothEdge);
+        }
+        
         frequency = 1000000.0f / smoothEdge;
         rpm = (frequency * 60) / 4;
     }
@@ -165,11 +169,16 @@ void loop()
 
     prevStatus = shaftSensorStatus;
 
+    static uint32_t nextPowerUpdateMillis = millis();
+
+    if (millis() > nextPowerUpdateMillis) {
+        powerLevel = pidController.compute(rpm, millis());
+        nextPowerUpdateMillis = millis() + 100;
+    }
+
     if (rpm < 5) {
         pidController.resetIterm();
     }
-
-    powerLevel = pidController.compute(rpm);
 
     // Cycle electromagnet if needed
     if (electromagnetEnabled) {
@@ -201,6 +210,11 @@ void loop()
         display.setCursor(0, 30);
         display.print("iTerm: ");
         display.print(pidController.getIterm());
+
+        display.setTextSize(1);
+        display.setCursor(0, 40);
+        display.print("dTerm: ");
+        display.print(pidController.getDterm());
 
         display.display();
 
