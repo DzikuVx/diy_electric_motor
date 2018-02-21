@@ -6,7 +6,7 @@
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
-PIDController pidController(2.0, 0.5, 0.0);
+PIDController pidController(1.5, 0.3, 2.0);
 
 #define IR_LED_PIN 9
 #define IR_FREQUENCY 5000
@@ -26,7 +26,8 @@ PIDController pidController(2.0, 0.5, 0.0);
 #define POWER_LEVEL_MIN 25
 #define POWER_LEVEL_MAX 255
 
-uint16_t powerLevel = POWER_LEVEL_DEFAULT;
+int powerLevel = POWER_LEVEL_DEFAULT;
+int setpoint = 500;
 
 uint32_t smooth(uint32_t data, float filterVal, float smoothedVal)
 {
@@ -68,7 +69,7 @@ void setup()
     display.clearDisplay();
     display.display();
 
-    pidController.setSetpoint(500);
+    pidController.setSetpoint(setpoint);
 }
 
 enum {
@@ -76,6 +77,13 @@ enum {
     MOTOR_STATE_SPINUP,
     MOTOR_STATE_WORKING
 };
+
+enum {
+    OPERATION_MODE_MANUAL,
+    OPERATION_MODE_PID
+};
+
+uint8_t operationMode = OPERATION_MODE_PID;
 
 float frequency;
 int rpm;   
@@ -94,9 +102,18 @@ void loop()
     button1State = digitalRead(BUTTON_1);
     if (button1State == LOW && button1PrevState == HIGH)
     {
-        powerLevel -= 5;
-        if (powerLevel < POWER_LEVEL_MIN) {
-            powerLevel = POWER_LEVEL_MIN;
+
+        if (operationMode == OPERATION_MODE_MANUAL) {
+            powerLevel -= 5;
+            if (powerLevel < POWER_LEVEL_MIN) {
+                powerLevel = POWER_LEVEL_MIN;
+            }
+        } else if (operationMode == OPERATION_MODE_PID) {
+            setpoint -= 10;
+            if (setpoint < 200) {
+                setpoint = 200;
+            }
+            pidController.setSetpoint(setpoint);
         }
     }
     button1PrevState = button1State;
@@ -104,9 +121,17 @@ void loop()
     button2State = digitalRead(BUTTON_2);
     if (button2State == LOW && button2PrevState == HIGH)
     {
-        powerLevel += 5;
-        if (powerLevel >= POWER_LEVEL_MAX) {
-            powerLevel = POWER_LEVEL_MAX;
+        if (operationMode == OPERATION_MODE_MANUAL) {
+            powerLevel += 5;
+            if (powerLevel >= POWER_LEVEL_MAX) {
+                powerLevel = POWER_LEVEL_MAX;
+            }
+        } else if (operationMode == OPERATION_MODE_PID) {
+            setpoint += 10;
+            if (setpoint > 1200) {
+                setpoint = 1200;
+            }
+            pidController.setSetpoint(setpoint);
         }
     }
     button2PrevState = button2State;
@@ -137,9 +162,9 @@ void loop()
         shaftSensorStatus = HIGH;
     }
 
-    if (shaftSensorStatus == LOW) {
+    // if (shaftSensorStatus == LOW) {
         // Serial.println(millis());
-    }
+    // }
     
     oledOpen = false;
 
@@ -175,7 +200,7 @@ void loop()
                 motorState = MOTOR_STATE_STOP;
             } else if (prevRpm == 0 && rpm > 0) {
                 motorState = MOTOR_STATE_SPINUP;
-                spinupLeaveTime = millis() + 1000; //Lock spinup for one second
+                spinupLeaveTime = millis() + 3000; //Lock spinup for one second
             } else if (motorState == MOTOR_STATE_SPINUP && millis() < spinupLeaveTime) {
                 /*
                  * This is dummy condition that prevents motor from entering working state
@@ -194,6 +219,7 @@ void loop()
         smoothEdge = 0;
         frequency = 0;
         rpm = 0;
+        prevRpm = 0;
         oledOpen = true;
         motorState = MOTOR_STATE_STOP;
     }
@@ -202,7 +228,7 @@ void loop()
 
     static uint32_t nextPowerUpdateMillis = millis();
 
-    if (millis() > nextPowerUpdateMillis) {
+    if (operationMode == OPERATION_MODE_PID && millis() > nextPowerUpdateMillis) {
 
         if (motorState == MOTOR_STATE_WORKING) {
             //Calculate using PID controller 
@@ -240,15 +266,23 @@ void loop()
         display.print("Power: ");
         display.print(powerLevel);
 
-        display.setTextSize(1);
-        display.setCursor(0, 30);
-        display.print("iTerm: ");
-        display.print(pidController.getIterm());
+        if (operationMode == OPERATION_MODE_PID) {
 
-        display.setTextSize(1);
-        display.setCursor(0, 40);
-        display.print("dTerm: ");
-        display.print(pidController.getDterm());
+            display.setTextSize(1);
+            display.setCursor(0, 36);
+            display.print("Setpoint: ");
+            display.print(setpoint);
+
+            display.setTextSize(1);
+            display.setCursor(0, 55);
+            display.print("I: ");
+            display.print(pidController.getIterm());
+
+            display.setTextSize(1);
+            display.setCursor(64, 55);
+            display.print("D: ");
+            display.print(pidController.getDterm());
+        }
 
         display.display();
 

@@ -7,8 +7,8 @@ PIDController::PIDController(float pGain, float iGain, float dGain)
     _iGain = iGain;
     _dGain = dGain;
 
-    _minIterm = -150;
-    _maxIterm = 150;
+    _minIterm = -250;
+    _maxIterm = 250;
 
     _min = 0;
     _max = 255;
@@ -25,18 +25,21 @@ int PIDController::compute(int measurement, unsigned long timestamp)
     int output = 0;
     int error = _setpoint - measurement;
 
-    float dT = (timestamp - _prevExecutionMillis) / 1000.0f;
+    if (timestamp - _prevExecutionMillis < 1000) {
+        float dT = (timestamp - _prevExecutionMillis) / 1000.0f;
 
-    output += (int) (error * _pGain);
+        //pTerm
+        output += (int) (error * _pGain);
 
-    _iTerm += error * _iGain * dT;
-    _iTerm = constrain(_iTerm, _minIterm, _maxIterm);
+        //Apply and constrain iTerm
+        _iTerm += error * _iGain * dT;
+        _iTerm = constrain(_iTerm, _minIterm, _maxIterm);
+        output += (int) _iTerm;
 
-    output += (int) _iTerm;
-
-    _dTerm = (float)(error - _previousError) * _dGain * dT;
-
-    output += _dTerm;
+        //dTerm
+        _dTerm = (float)(error - _previousError) * _dGain * dT;
+        output += _dTerm;
+    }
 
     _previousError = error;
     _previousMeasurement = measurement;
