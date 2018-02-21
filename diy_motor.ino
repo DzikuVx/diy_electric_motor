@@ -71,8 +71,16 @@ void setup()
     pidController.setSetpoint(500);
 }
 
+enum {
+    MOTOR_STATE_STOP,
+    MOTOR_STATE_SPINUP,
+    MOTOR_STATE_WORKING
+};
+
 float frequency;
-uint16_t rpm;   
+int rpm;   
+int prevRpm; 
+uint8_t motorState = MOTOR_STATE_STOP;
 
 uint8_t button1PrevState = HIGH;
 uint8_t button1State = HIGH;
@@ -153,11 +161,33 @@ void loop()
         uint32_t diff = edgeMicros - prevEdgeMicros;
 
         if (diff < 1000000 && diff > 0) {
+            //readouts makes sense
+
             smoothEdge = smooth(diff, 0.97, smoothEdge);
-        }
         
-        frequency = 1000000.0f / smoothEdge;
-        rpm = (frequency * 60) / 4;
+            frequency = 1000000.0f / smoothEdge;
+            rpm = frequency * 15; // x * 60 / 15 = x * 15
+        
+            static uint32_t spinupLeaveTime = 0;
+
+            //Define current motor state
+            if (rpm == 0) {
+                motorState = MOTOR_STATE_STOP;
+            } else if (prevRpm == 0 && rpm > 0) {
+                motorState = MOTOR_STATE_SPINUP;
+                spinupLeaveTime = millis() + 1000; //Lock spinup for one second
+            } else if (motorState == MOTOR_STATE_SPINUP && millis() < spinupLeaveTime) {
+                /*
+                 * This is dummy condition that prevents motor from entering working state
+                 * too early
+                 */
+            } else {
+                //In other cases we assume motor is just working
+                motorState = MOTOR_STATE_WORKING;
+            }
+
+            prevRpm = rpm;
+        }
     }
 
     if (prevEdgeMicros == 0 || micros() - prevEdgeMicros > 1000000) {
@@ -165,6 +195,7 @@ void loop()
         frequency = 0;
         rpm = 0;
         oledOpen = true;
+        motorState = MOTOR_STATE_STOP;
     }
 
     prevStatus = shaftSensorStatus;
@@ -172,12 +203,15 @@ void loop()
     static uint32_t nextPowerUpdateMillis = millis();
 
     if (millis() > nextPowerUpdateMillis) {
-        powerLevel = pidController.compute(rpm, millis());
-        nextPowerUpdateMillis = millis() + 100;
-    }
 
-    if (rpm < 5) {
-        pidController.resetIterm();
+        if (motorState == MOTOR_STATE_WORKING) {
+            //Calculate using PID controller 
+            powerLevel = pidController.compute(rpm, millis());
+        } else {
+            pidController.resetIterm();
+            powerLevel = 168;
+        }
+        nextPowerUpdateMillis = millis() + 100;
     }
 
     // Cycle electromagnet if needed
