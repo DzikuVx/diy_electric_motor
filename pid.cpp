@@ -34,7 +34,7 @@ int PIDController::compute(int measurement, unsigned long timestamp)
 
     output += (int) _iTerm;
 
-    _dTerm = (float)(error - _previousError) * _dGain;
+    _dTerm = (float)(error - _previousError) * _dGain * dT;
 
     output += _dTerm;
 
