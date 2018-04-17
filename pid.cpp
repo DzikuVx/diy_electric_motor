@@ -1,11 +1,12 @@
 #include "pid.h"
 #include <Arduino.h>
 
-PIDController::PIDController(float pGain, float iGain, float dGain)
+PIDController::PIDController(float pGain, float iGain, float dGain, float ffGain)
 {
     _pGain = pGain;
     _iGain = iGain;
     _dGain = dGain;
+    _ffGain = ffGain;
 
     _minIterm = -250;
     _maxIterm = 250;
@@ -13,6 +14,18 @@ PIDController::PIDController(float pGain, float iGain, float dGain)
     _min = 0;
     _max = 255;
     _previousError = 0;
+}
+
+void PIDController::setProperties(int minOutput, int maxOutput)
+{
+    _min = minOutput;
+    _max = maxOutput;
+}
+
+void PIDController::setItermProperties(int minIterm, int maxIterm) 
+{
+    _minIterm = minIterm;
+    _maxIterm = maxIterm;
 }
 
 void PIDController::setSetpoint(int setpoint) 
@@ -25,6 +38,7 @@ int PIDController::compute(int measurement, unsigned long timestamp)
     int output = 0;
     int error = _setpoint - measurement;
 
+    //Do not run update if pid loop is called too often
     if (timestamp - _prevExecutionMillis < 1000) {
         float dT = (timestamp - _prevExecutionMillis) / 1000.0f;
 
@@ -39,6 +53,10 @@ int PIDController::compute(int measurement, unsigned long timestamp)
         //dTerm
         _dTerm = (float)(error - _previousError) * _dGain * dT;
         output += _dTerm;
+
+        //ffTerm
+        _ffTerm = (float) measurement * _ffGain;
+        output += _ffTerm;
     }
 
     _previousError = error;
