@@ -2,6 +2,6 @@
     "sketch": "diy_motor.ino",
     "board": "arduino:avr:pro",
     "configuration": "cpu=16MHzatmega328",
-    "port": "COM9",
+    "port": "COM6",
     "output": "../build"
 }

@@ -6,7 +6,7 @@
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
-PIDController pidController(1.5, 0.3, 0, 0.25f);
+PIDController pidController(2, 0.3, 3, 0.2f);
 
 #define IR_LED_PIN 9
 #define IR_FREQUENCY 5000
@@ -48,7 +48,7 @@ uint32_t smooth(uint32_t data, float filterVal, float smoothedVal)
 void setup()
 {
     pidController.setProperties(0, 255);
-    pidController.setItermProperties(-100, 100);
+    pidController.setItermProperties(-50, 100);
 
 	pinMode(IR_LED_PIN, OUTPUT);
     digitalWrite(IR_LED_PIN, HIGH);
