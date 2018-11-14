@@ -55,7 +55,7 @@ int PIDController::compute(int measurement, unsigned long timestamp)
         output += _dTerm;
 
         //ffTerm
-        _ffTerm = (float) measurement * _ffGain;
+        _ffTerm = (float) _setpoint * _ffGain;
         output += _ffTerm;
     }
 
